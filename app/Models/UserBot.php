@@ -114,7 +114,26 @@ class UserBot extends AbstractModel
 
         try {
             $data['event'] = $event;
-            $result = Ihttp::ihttp_post($this->webhook_url, $data, $timeout);
+            
+            // 检查是否是钉钉机器人webhook
+            $isDingTalk = str_contains($this->webhook_url, 'oapi.dingtalk.com/robot/send');
+            
+            if ($isDingTalk) {
+                // 钉钉机器人需要JSON格式，包含msgtype字段
+                $dingTalkData = [
+                    'msgtype' => 'text',
+                    'text' => [
+                        'content' => $data['text'] ?? '收到一条消息'
+                    ]
+                ];
+                // 使用JSON格式发送
+                $headers = ['Content-Type' => 'application/json'];
+                $result = Ihttp::ihttp_request($this->webhook_url, Base::array2json($dingTalkData), $headers, $timeout);
+            } else {
+                // 其他webhook使用默认表单格式
+                $result = Ihttp::ihttp_post($this->webhook_url, $data, $timeout);
+            }
+            
             $this->increment('webhook_num');
             return $result;
         } catch (Throwable $th) {
